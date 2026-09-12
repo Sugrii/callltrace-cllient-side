@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Call Log & Network Intelligence</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f6ff',
+                            100: '#e0edff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0.0, 0.6, 1) infinite',
+                        'bounce-short': 'bounce 0.8s ease-in-out 1',
+                        'fade-in': 'fadeIn 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(8px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.8);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(71, 85, 105, 1);
+        }
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-blue-500 selection:text-white pb-12">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 py-3 sm:px-6">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+                    <i data-lucide="phone-call" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                        CallTrace <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium ml-1">Live API</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-400 hidden sm:block">Real-time carrier detection & 30-day call records provider</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button onclick="fetchLiveCallLogs()" class="flex items-center space-x-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs px-3 py-1.5 rounded-lg transition-all active:scale-95">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    <span>Refresh Data</span>
+                </button>
+                <div id="connectionBadge" class="flex items-center space-x-1.5 bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs px-2.5 py-1.5 rounded-lg">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-[11px] font-medium hidden xs:inline">API Connected</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 pt-6 sm:pt-8 space-y-6">
+
+        <!-- Phone Input & Carrier Hero Section -->
+        <section class="glass-panel rounded-2xl p-4 sm:p-6 shadow-2xl relative overflow-hidden">
+            <div id="ambientGlow" class="absolute -top-24 -right-24 w-60 h-60 bg-blue-600/15 rounded-full blur-3xl pointer-events-none transition-all duration-500"></div>
+
+            <div class="relative z-10 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label for="phoneInput" class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="smartphone" class="w-4 h-4 text-blue-400"></i>
+                        Target Phone Number
+                    </label>
+                    <span class="text-[11px] text-slate-400">
+                        Type <span class="text-blue-400 font-medium">3 digits</span> to detect carrier (e.g. 024, 050, 027, +233)
+                    </span>
+                </div>
+
+                <!-- Phone Input Field -->
+                <div class="relative flex items-center">
+                    <div class="absolute left-3.5 sm:left-4 text-slate-400 pointer-events-none flex items-center">
+                        <i data-lucide="hash" class="w-5 h-5"></i>
+                    </div>
+                    <input 
+                        type="tel" 
+                        id="phoneInput" 
+                        placeholder="Enter full phone number (e.g. 0244123456 or +233...)" 
+                        class="w-full bg-slate-900/90 border-2 border-slate-700/80 focus:border-blue-500 text-white font-mono text-lg sm:text-xl rounded-xl pl-11 pr-28 py-3.5 outline-none transition-all duration-200 placeholder:text-slate-600 shadow-inner"
+                        autocomplete="off"
+                    />
+                    
+                    <div class="absolute right-3 flex items-center">
+                        <div id="miniNetworkBadge" class="hidden items-center space-x-1.5 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-300 transition-all">
+                            <span id="miniBadgeIcon"></span>
+                            <span id="miniBadgeText">---</span>
+                        </div>
+                        <button id="clearBtn" onclick="clearInput()" class="hidden text-slate-400 hover:text-slate-200 p-1.5 rounded-md hover:bg-slate-800 transition">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Carrier Badge Info -->
+                <div id="carrierCard" class="hidden transition-all duration-300">
+                    <div class="mt-2 p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex items-center space-x-3.5">
+                            <div id="carrierLogoContainer" class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md shrink-0 bg-slate-800">
+                                <i data-lucide="radio-tower" class="w-6 h-6 text-slate-400"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h3 id="carrierName" class="font-bold text-slate-100 text-base">Detecting Carrier...</h3>
+                                    <span id="countryBadge" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 font-semibold uppercase">GH</span>
+                                </div>
+                                <p id="carrierDetails" class="text-xs text-slate-400 mt-0.5">Prefix identified • Telecom Network verified</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-slate-800 pt-3 sm:pt-0">
+                            <div class="text-center sm:text-right px-2">
+                                <span class="text-[10px] uppercase tracking-wider text-slate-500 block">Query Window</span>
+                                <span class="text-xs font-semibold text-blue-400">Past 30 Days</span>
+                            </div>
+                            <div class="h-6 w-[1px] bg-slate-800 hidden sm:block"></div>
+                            <div class="text-center sm:text-right px-2">
+                                <span class="text-[10px] uppercase tracking-wider text-slate-500 block">Total Logs</span>
+                                <span id="logCountBadge" class="text-xs font-bold text-blue-400 font-mono">0 Logs</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call Statistics Highlights -->
+        <section id="statsSection" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="glass-card p-3.5 rounded-xl flex items-center space-x-3">
+                <div class="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                    <i data-lucide="phone" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Total Calls</p>
+                    <p id="statTotal" class="text-lg font-bold text-white font-mono">0</p>
+                </div>
+            </div>
+            <div class="glass-card p-3.5 rounded-xl flex items-center space-x-3">
+                <div class="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <i data-lucide="phone-incoming" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Incoming</p>
+                    <p id="statIncoming" class="text-lg font-bold text-white font-mono">0</p>
+                </div>
+            </div>
+            <div class="glass-card p-3.5 rounded-xl flex items-center space-x-3">
+                <div class="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                    <i data-lucide="phone-outgoing" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Outgoing</p>
+                    <p id="statOutgoing" class="text-lg font-bold text-white font-mono">0</p>
+                </div>
+            </div>
+            <div class="glass-card p-3.5 rounded-xl flex items-center space-x-3">
+                <div class="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                    <i data-lucide="phone-missed" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Missed</p>
+                    <p id="statMissed" class="text-lg font-bold text-white font-mono">0</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call Logs Panel -->
+        <section class="glass-panel rounded-2xl overflow-hidden shadow-xl border border-slate-800">
+            <div class="p-4 sm:p-5 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-900/40">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="history" class="w-5 h-5 text-blue-400"></i>
+                        <h2 class="font-semibold text-slate-100 text-base">30-Day Call History</h2>
+                    </div>
+                    <span id="fetchingSpinner" class="hidden items-center space-x-2 text-xs text-blue-400 font-medium">
+                        <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                        <span>Querying backend API...</span>
+                    </span>
+                </div>
+
+                <!-- Filters & Search -->
+                <div id="filterControls" class="hidden flex flex-wrap items-center gap-2">
+                    <div class="relative flex-1 min-w-[140px] sm:w-48">
+                        <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                        <input 
+                            type="text" 
+                            id="searchLogsInput" 
+                            placeholder="Search contact or date..." 
+                            oninput="filterAndRenderLogs()"
+                            class="w-full bg-slate-950/80 border border-slate-700/80 focus:border-blue-500 text-xs rounded-lg pl-8 pr-2.5 py-1.5 outline-none text-slate-200 placeholder:text-slate-500"
+                        />
+                    </div>
+
+                    <div class="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-xs font-medium">
+                        <button onclick="setTabFilter('all')" id="tab-all" class="px-2.5 py-1 rounded-md bg-slate-800 text-white transition">All</button>
+                        <button onclick="setTabFilter('incoming')" id="tab-incoming" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">Incoming</button>
+                        <button onclick="setTabFilter('outgoing')" id="tab-outgoing" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">Outgoing</button>
+                        <button onclick="setTabFilter('missed')" id="tab-missed" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">Missed</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="py-16 px-4 text-center space-y-3">
+                <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-slate-600">
+                    <i data-lucide="keypad" class="w-8 h-8"></i>
+                </div>
+                <div class="max-w-xs mx-auto space-y-1">
+                    <h3 class="text-sm font-semibold text-slate-300">Enter Target Phone Number</h3>
+                    <p class="text-xs text-slate-500">Type a phone number above to detect network carrier and fetch live call records for the last 30 days.</p>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="hidden py-12 px-4 text-center space-y-3">
+                <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto text-rose-400">
+                    <i data-lucide="alert-circle" class="w-6 h-6"></i>
+                </div>
+                <div class="max-w-sm mx-auto space-y-1">
+                    <h3 class="text-sm font-semibold text-slate-200" id="errorMessage">Unable to fetch call logs</h3>
+                    <p class="text-xs text-slate-400">Ensure your API endpoint server is running and configured correctly.</p>
+                </div>
+            </div>
+
+            <!-- Call Logs List -->
+            <div id="logsList" class="divide-y divide-slate-800/60 max-h-[480px] overflow-y-auto"></div>
+        </section>
+    </main>
+
+    <!-- Call Detail Modal -->
+    <div id="logDetailModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4 transition-opacity">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl relative animate-fade-in">
+            <button onclick="closeModal()" class="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800/50">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <div class="flex items-center space-x-3">
+                <div id="modalAvatar" class="w-12 h-12 rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-lg">
+                    C
+                </div>
+                <div>
+                    <h3 id="modalName" class="font-bold text-slate-100 text-base">Contact Name</h3>
+                    <p id="modalPhone" class="text-xs font-mono text-slate-400">+233 24 000 0000</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2.5 text-xs">
+                <div class="flex justify-between items-center text-slate-400">
+                    <span>Call Type:</span>
+                    <span id="modalType" class="font-semibold text-slate-200">Incoming</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-400">
+                    <span>Duration:</span>
+                    <span id="modalDuration" class="font-mono text-slate-200">2 mins 45 secs</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-400">
+                    <span>Timestamp:</span>
+                    <span id="modalTime" class="text-slate-200">2026-09-01 14:45</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-400">
+                    <span>Network Provider:</span>
+                    <span id="modalCarrier" class="font-semibold text-amber-400">MTN Ghana</span>
+                </div>
+            </div>
+
+            <button onclick="closeModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-medium transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript REST API Integration Logic -->
+    <script>
+        // Production API Configuration
+        // Replace API_BASE_URL with your Node.js, Express, Firebase, or Gateway server URL
+        const CONFIG = {
+            API_BASE_URL: 'https://callltrace-backend.vercel.app/api', 
+            DAYS_LOOKBACK: 30
+        };
+
+
+        // State Management
+        let currentLogs = [];
+        let activeFilter = 'all';
+        let currentDetectedNetwork = null;
+        let fetchTimeout = null;
+
+        // Ghana & Global Network Prefixes Map
+        const NETWORKS = {
+            MTN_GH: {
+                name: "MTN Ghana",
+                flag: "GH",
+                color: "from-yellow-500 to-amber-600",
+                badgeBg: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+                icon: "zap",
+                prefixes: ["024", "054", "055", "059", "025", "053", "+23324", "+23354", "+23355", "+23359", "+23325", "+23353"]
+            },
+            TELECEL_GH: {
+                name: "Telecel Ghana",
+                flag: "GH",
+                color: "from-red-600 to-rose-700",
+                badgeBg: "bg-red-500/10 text-red-400 border-red-500/30",
+                icon: "radio-tower",
+                prefixes: ["020", "050", "+23320", "+23350"]
+            },
+            AT_GH: {
+                name: "AT Ghana",
+                flag: "GH",
+                color: "from-blue-600 to-cyan-600",
+                badgeBg: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+                icon: "rss",
+                prefixes: ["027", "057", "026", "056", "+23327", "+23357", "+23326", "+23356"]
+            },
+            GLO_GH: {
+                name: "Glo Ghana",
+                flag: "GH",
+                color: "from-emerald-600 to-green-700",
+                badgeBg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+                icon: "globe",
+                prefixes: ["023", "+23323"]
+            },
+            INT_GENERIC: {
+                name: "International Line",
+                flag: "INT",
+                color: "from-indigo-600 to-purple-700",
+                badgeBg: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30",
+                icon: "globe-2",
+                prefixes: ["+1", "+44", "+234", "+254", "00"]
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            document.getElementById('phoneInput').addEventListener('input', handleInputChange);
+        });
+
+        function clearInput() {
+            const input = document.getElementById('phoneInput');
+            input.value = '';
+            handleInputChange();
+            input.focus();
+        }
+
+        function handleInputChange() {
+            const input = document.getElementById('phoneInput');
+            const clearBtn = document.getElementById('clearBtn');
+            let rawValue = input.value.trim().replace(/\s+/g, '');
+
+            if (rawValue.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+
+            const digitsOnly = rawValue.replace(/[^0-9+]/g, '');
+
+            // 1. Detect Network carrier at 3 digits
+            if (digitsOnly.length >= 3) {
+                const detected = detectNetwork(digitsOnly);
+                currentDetectedNetwork = detected;
+                updateCarrierUI(detected);
+
+                // Debounce API calls as user types the full number
+                clearTimeout(fetchTimeout);
+                fetchTimeout = setTimeout(() => {
+                    fetchLiveCallLogs();
+                }, 500);
+
+            } else {
+                currentDetectedNetwork = null;
+                hideCarrierUI();
+                resetLogs();
+            }
+        }
+
+        // Detect telecom network operator based on entry prefix
+        function detectNetwork(numberStr) {
+            for (const key in NETWORKS) {
+                const net = NETWORKS[key];
+                for (const prefix of net.prefixes) {
+                    if (numberStr.startsWith(prefix)) return net;
+                }
+            }
+
+            if (numberStr.startsWith('+')) {
+                return NETWORKS.INT_GENERIC;
+            }
+
+            return {
+                name: "Standard Mobile Carrier",
+                flag: "LOCAL",
+                color: "from-slate-700 to-slate-800",
+                badgeBg: "bg-slate-700/30 text-slate-300 border-slate-600/30",
+                icon: "signal",
+                prefixes: []
+            };
+        }
+
+        function updateCarrierUI(network) {
+            const carrierCard = document.getElementById('carrierCard');
+            const miniBadge = document.getElementById('miniNetworkBadge');
+            const miniBadgeIcon = document.getElementById('miniBadgeIcon');
+            const miniBadgeText = document.getElementById('miniBadgeText');
+
+            carrierCard.classList.remove('hidden');
+            miniBadge.classList.remove('hidden');
+            miniBadge.className = `flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${network.badgeBg}`;
+
+            miniBadgeText.textContent = network.name.split(' ')[0];
+            miniBadgeIcon.innerHTML = `<i data-lucide="${network.icon}" class="w-3.5 h-3.5"></i>`;
+
+            document.getElementById('carrierName').textContent = network.name;
+            document.getElementById('countryBadge').textContent = network.flag;
+
+            const logoContainer = document.getElementById('carrierLogoContainer');
+            logoContainer.className = `w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shrink-0 bg-gradient-to-br ${network.color}`;
+            logoContainer.innerHTML = `<i data-lucide="${network.icon}" class="w-6 h-6 text-white"></i>`;
+
+            lucide.createIcons();
+        }
+
+        function hideCarrierUI() {
+            document.getElementById('carrierCard').classList.add('hidden');
+            document.getElementById('miniNetworkBadge').classList.add('hidden');
+        }
+
+        /**
+         * Fetch Live Call Logs from Backend/API Endpoint
+         * Retrieves 30 days of activity for the entered phone number
+         */
+        async function fetchLiveCallLogs() {
+            const phoneInput = document.getElementById('phoneInput').value.trim();
+            const digitsOnly = phoneInput.replace(/[^0-9+]/g, '');
+
+            if (digitsOnly.length < 3) return;
+
+            showSpinner(true);
+            hideError();
+
+            // Calculate date range for past 30 days
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - CONFIG.DAYS_LOOKBACK);
+
+            try {
+                // Real REST API Request
+                const response = await fetch(`${CONFIG.API_BASE_URL}/call-logs?phoneNumber=${encodeURIComponent(digitsOnly)}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                        // Add Authorization header if required by your API server:
+                        // 'Authorization': 'Bearer YOUR_API_TOKEN'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Map API response to standard schema
+                currentLogs = (data.logs || data || []).map((item, idx) => ({
+                    id: item.id || `log-${idx}`,
+                    contactName: item.contactName || item.callerName || 'Unknown Contact',
+                    phoneNumber: item.phoneNumber || item.from || item.to || digitsOnly,
+                    type: (item.type || item.direction || 'incoming').toLowerCase(), // 'incoming', 'outgoing', 'missed'
+                    timestamp: item.timestamp || item.dateTime || item.date,
+                    durationSec: item.duration || item.durationSeconds || 0,
+                    carrier: currentDetectedNetwork ? currentDetectedNetwork.name : 'Unknown'
+                }));
+
+                renderLogsUI();
+                updateStatsUI();
+
+            } catch (error) {
+                console.warn('API connection failed or endpoint unreachable:', error.message);
+                showError(`Failed to fetch call logs for ${digitsOnly}. Ensure backend server endpoint is active.`);
+                currentLogs = [];
+                renderLogsUI();
+                updateStatsUI();
+            } finally {
+                showSpinner(false);
+            }
+        }
+
+        function showSpinner(isFetching) {
+            const spinner = document.getElementById('fetchingSpinner');
+            if (isFetching) {
+                spinner.classList.remove('hidden');
+                spinner.classList.add('flex');
+            } else {
+                spinner.classList.add('hidden');
+                spinner.classList.remove('flex');
+            }
+        }
+
+        function showError(msg) {
+            const errorState = document.getElementById('errorState');
+            document.getElementById('errorMessage').textContent = msg;
+            errorState.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorState').classList.add('hidden');
+        }
+
+        function resetLogs() {
+            currentLogs = [];
+            document.getElementById('emptyState').classList.remove('hidden');
+            hideError();
+            document.getElementById('logsList').innerHTML = '';
+            document.getElementById('filterControls').classList.add('hidden');
+            document.getElementById('statsSection').classList.add('hidden');
+            document.getElementById('logCountBadge').textContent = '0 Logs';
+        }
+
+        function renderLogsUI() {
+            const emptyState = document.getElementById('emptyState');
+            const logsList = document.getElementById('logsList');
+            const filterControls = document.getElementById('filterControls');
+            const statsSection = document.getElementById('statsSection');
+            const logCountBadge = document.getElementById('logCountBadge');
+
+            const filtered = getFilteredLogs();
+
+            if (currentLogs.length === 0) {
+                if (document.getElementById('phoneInput').value.length >= 3) {
+                    emptyState.classList.add('hidden');
+                } else {
+                    emptyState.classList.remove('hidden');
+                }
+                filterControls.classList.add('hidden');
+                statsSection.classList.add('hidden');
+                logCountBadge.textContent = '0 Logs';
+                logsList.innerHTML = '';
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            filterControls.classList.remove('hidden');
+            statsSection.classList.remove('hidden');
+            logCountBadge.textContent = `${currentLogs.length} Logs`;
+
+            if (filtered.length === 0) {
+                logsList.innerHTML = `<div class="py-10 text-center text-slate-500 text-xs">No records matching query.</div>`;
+                return;
+            }
+
+            logsList.innerHTML = filtered.map(log => {
+                let typeIcon = log.type === 'incoming' ? 'phone-incoming' : (log.type === 'outgoing' ? 'phone-outgoing' : 'phone-missed');
+                let typeColor = log.type === 'incoming' ? 'text-emerald-400' : (log.type === 'outgoing' ? 'text-indigo-400' : 'text-rose-400');
+                let typeBg = log.type === 'incoming' ? 'bg-emerald-500/10 border-emerald-500/20' : (log.type === 'outgoing' ? 'bg-indigo-500/10 border-indigo-500/20' : 'bg-rose-500/10 border-rose-500/20');
+
+                const formattedDuration = log.type === 'missed' ? 'Missed Call' : formatDuration(log.durationSec);
+                const formattedTime = formatDate(log.timestamp);
+
+                return `
+                    <div onclick="openLogDetails('${log.id}')" class="p-3.5 sm:p-4 hover:bg-slate-800/40 transition cursor-pointer flex items-center justify-between group">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <div class="p-2.5 rounded-xl border ${typeBg} ${typeColor} shrink-0 group-hover:scale-105 transition-transform">
+                                <i data-lucide="${typeIcon}" class="w-4 h-4"></i>
+                            </div>
+
+                            <div class="min-w-0">
+                                <h4 class="font-semibold text-sm text-slate-200 truncate group-hover:text-blue-400 transition-colors">${escapeHtml(log.contactName)}</h4>
+                                <p class="text-xs font-mono text-slate-400 truncate mt-0.5">${log.phoneNumber}</p>
+                            </div>
+                        </div>
+
+                        <div class="text-right shrink-0 ml-3">
+                            <span class="text-xs font-semibold block text-slate-200 font-mono">${formattedDuration}</span>
+                            <span class="text-[11px] text-slate-500 mt-0.5 block">${formattedTime}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function getFilteredLogs() {
+            const searchTerm = document.getElementById('searchLogsInput').value.toLowerCase();
+            return currentLogs.filter(log => {
+                const matchesTab = activeFilter === 'all' || log.type === activeFilter;
+                const matchesSearch = log.contactName.toLowerCase().includes(searchTerm) || 
+                                      log.phoneNumber.toLowerCase().includes(searchTerm);
+                return matchesTab && matchesSearch;
+            });
+        }
+
+        function filterAndRenderLogs() {
+            renderLogsUI();
+        }
+
+        function setTabFilter(tab) {
+            activeFilter = tab;
+            ['all', 'incoming', 'outgoing', 'missed'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                btn.className = (t === tab) ? "px-2.5 py-1 rounded-md bg-slate-800 text-white transition" : "px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition";
+            });
+            renderLogsUI();
+        }
+
+        function updateStatsUI() {
+            document.getElementById('statTotal').textContent = currentLogs.length;
+            document.getElementById('statIncoming').textContent = currentLogs.filter(l => l.type === 'incoming').length;
+            document.getElementById('statOutgoing').textContent = currentLogs.filter(l => l.type === 'outgoing').length;
+            document.getElementById('statMissed').textContent = currentLogs.filter(l => l.type === 'missed').length;
+        }
+
+        function openLogDetails(id) {
+            const log = currentLogs.find(l => l.id === id);
+            if (!log) return;
+
+            document.getElementById('modalName').textContent = log.contactName;
+            document.getElementById('modalPhone').textContent = log.phoneNumber;
+            document.getElementById('modalType').textContent = log.type.toUpperCase();
+            document.getElementById('modalDuration').textContent = log.type === 'missed' ? 'None (Missed)' : formatDuration(log.durationSec);
+            document.getElementById('modalTime').textContent = formatDate(log.timestamp);
+            document.getElementById('modalCarrier').textContent = log.carrier;
+
+            document.getElementById('modalAvatar').textContent = log.contactName.charAt(0) || 'C';
+
+            const modal = document.getElementById('logDetailModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('logDetailModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function formatDuration(sec) {
+            if (!sec || sec === 0) return '0s';
+            const mins = Math.floor(sec / 60);
+            const remainingSec = sec % 60;
+            return mins > 0 ? `${mins}m ${remainingSec}s` : `${remainingSec}s`;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const d = new Date(dateStr);
+            return isNaN(d) ? dateStr : d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+    </script>
+</body>
+</html>
