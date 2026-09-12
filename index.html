@@ -34,11 +34,11 @@
         button:active { transform: scale(0.98); }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         @media (max-width: 640px) { .grid-2, .input-group { grid-template-columns: 1fr; flex-direction: column; } }
-        .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 500; }
+        .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 500; text-transform: capitalize; }
         .badge-incoming { background: rgba(16, 185, 129, 0.2); color: var(--success-color); }
         .badge-outgoing { background: rgba(37, 99, 235, 0.2); color: #60a5fa; }
         .badge-missed { background: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
-        .badge-paystack { background: rgba(167, 139, 250, 0.2); color: #c084fc; font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: 0.3rem; }
+        .badge-paystack { background: rgba(167, 139, 250, 0.2); color: #c084fc; font-size: 0.75rem; padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: 0.4rem; }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: left; }
         th, td { padding: 0.85rem; border-bottom: 1px solid var(--border-color); }
         th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -60,10 +60,10 @@
     <div class="card">
         <h3>Lookup Call History</h3>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">
-            Enter a target phone number to fetch the last 30 days of activity.
+            Enter a target phone number to fetch activity logs.
         </p>
         <div class="input-group">
-            <input type="text" id="targetPhoneInput" placeholder="e.g. 0247946116 or +233247946116" value="0247946116">
+            <input type="text" id="targetPhoneInput" placeholder="e.g. 0247946116" value="0247946116">
             <button onclick="handleFetchLogs()">Search Logs</button>
         </div>
     </div>
@@ -74,7 +74,7 @@
         <form id="addLogForm" onsubmit="handleCreateLog(event)" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.8rem;">
             <div class="grid-2">
                 <input type="text" id="newTargetPhone" placeholder="Target Phone (e.g. 0247946116)" required>
-                <input type="text" id="newContactName" placeholder="Contact Name (Optional - auto resolved via Paystack)">
+                <input type="text" id="newContactName" placeholder="Contact Name (Auto-resolved via Paystack if empty)">
             </div>
             <div class="grid-2">
                 <select id="newCallType" required>
@@ -92,7 +92,7 @@
     <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h3>Call Logs History</h3>
-            <span id="recordCount" style="font-size: 0.85rem; color: var(--text-muted);">0 records found</span>
+            <span id="recordCount" style="font-size: 0.85rem; color: var(--text-muted);">Fetching...</span>
         </div>
 
         <div id="loadingSpinner" class="loader" style="margin-top: 1.5rem;"></div>
@@ -110,7 +110,7 @@
                 </thead>
                 <tbody id="logsTableBody">
                     <tr>
-                        <td colspan="5" class="empty-state">Enter a phone number above and click "Search Logs"</td>
+                        <td colspan="5" class="empty-state">Loading logs...</td>
                     </tr>
                 </tbody>
             </table>
@@ -119,149 +119,12 @@
 </div>
 
 <script>
-    // const CONFIG = {
-    //     // Automatically selects host endpoint or relative path on Vercel
-    //     API_BASE_URL: window.location.origin + '/api'
-    // };
-
-    // function getFriendlyErrorMessage(err) {
-    //     if (!err) return 'Unknown network error.';
-    //     if (typeof err === 'string') return err;
-    //     if (err.message) return err.message;
-    //     try {
-    //         return JSON.stringify(err);
-    //     } catch (e) {
-    //         return 'An unexpected error occurred.';
-    //     }
-    // }
-
-    // async function handleFetchLogs() {
-    //     const phone = document.getElementById('targetPhoneInput').value.trim();
-    //     if (!phone) {
-    //         alert('Please enter a valid phone number.');
-    //         return;
-    //     }
-
-    //     const tableBody = document.getElementById('logsTableBody');
-    //     const spinner = document.getElementById('loadingSpinner');
-    //     const recordCount = document.getElementById('recordCount');
-
-    //     tableBody.innerHTML = '';
-    //     spinner.style.display = 'block';
-
-    //     try {
-    //         const url = `${CONFIG.API_BASE_URL}/call-logs?phoneNumber=${encodeURIComponent(phone)}`;
-    //         const response = await fetch(url, {
-    //             method: 'GET',
-    //             headers: { 'Accept': 'application/json' }
-    //         });
-
-    //         const data = await response.json().catch(() => null);
-
-    //         if (!response.ok) {
-    //             const message = data && data.message ? data.message : `HTTP ${response.status}: ${response.statusText}`;
-    //             throw new Error(message);
-    //         }
-
-    //         spinner.style.display = 'none';
-
-    //         if (!data || !data.logs || data.logs.length === 0) {
-    //             recordCount.innerText = '0 records found';
-    //             tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No call logs found for ${phone} in the past 30 days.</td></tr>`;
-    //             return;
-    //         }
-
-    //         recordCount.innerText = `${data.logs.length} record(s) found`;
-    //         tableBody.innerHTML = data.logs.map(log => `
-    //             <tr>
-    //                 <td>
-    //                     <strong>${escapeHtml(log.contactName)}</strong>
-    //                     ${log.paystackVerified ? '<span class="badge-paystack">Paystack Verified</span>' : ''}
-    //                     <br><small style="color: var(--text-muted);">${escapeHtml(log.phoneNumber)}</small>
-    //                 </td>
-    //                 <td><span class="status-badge badge-${log.type}">${log.type}</span></td>
-    //                 <td>${escapeHtml(log.carrier)}</td>
-    //                 <td>${formatDuration(log.durationSec)}</td>
-    //                 <td>${new Date(log.timestamp).toLocaleString()}</td>
-    //             </tr>
-    //         `).join('');
-
-    //     } catch (error) {
-    //         spinner.style.display = 'none';
-    //         const errorText = getFriendlyErrorMessage(error);
-    //         console.error('Fetch Error:', errorText);
-    //         tableBody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color: var(--danger-color);">Failed to fetch call logs for ${phone}.<br><small>${escapeHtml(errorText)}</small></td></tr>`;
-    //     }
-    // }
-
-    // async function handleCreateLog(event) {
-    //     event.preventDefault();
-        
-    //     const targetPhone = document.getElementById('newTargetPhone').value.trim();
-    //     const contactName = document.getElementById('newContactName').value.trim();
-    //     const type = document.getElementById('newCallType').value;
-    //     const durationSec = document.getElementById('newDuration').value;
-
-    //     try {
-    //         const response = await fetch(`${CONFIG.API_BASE_URL}/call-logs`, {
-    //             method: 'POST',
-    //             headers: { 'Content-Type': 'application/json' },
-    //             body: JSON.stringify({
-    //                 targetPhone,
-    //                 contactName,
-    //                 phoneNumber: targetPhone,
-    //                 type,
-    //                 durationSec,
-    //                 timestamp: new Date().toISOString()
-    //             })
-    //         });
-
-    //         const data = await response.json().catch(() => null);
-
-    //         if (!response.ok) {
-    //             const message = data && data.message ? data.message : `HTTP ${response.status}`;
-    //             throw new Error(message);
-    //         }
-
-    //         alert('Record saved successfully!');
-    //         document.getElementById('addLogForm').reset();
-    //         document.getElementById('targetPhoneInput').value = targetPhone;
-    //         handleFetchLogs();
-
-    //     } catch (error) {
-    //         const errorText = getFriendlyErrorMessage(error);
-    //         alert(`Failed to save record: ${errorText}`);
-    //     }
-    // }
-
-    // function formatDuration(seconds) {
-    //     if (!seconds || seconds <= 0) return '0s';
-    //     const m = Math.floor(seconds / 60);
-    //     const s = seconds % 60;
-    //     return m > 0 ? `${m}m ${s}s` : `${s}s`;
-    // }
-
-    // function escapeHtml(str) {
-    //     return (str || '').replace(/[&<>"']/g, function(m) {
-    //         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
-    //     });
-    // }
-
-
-
-
     const CONFIG = {
-        // Points directly to Vercel's rewrite path
         API_BASE_URL: '/api'
     };
 
     async function handleFetchLogs() {
         const phone = document.getElementById('targetPhoneInput').value.trim();
-        if (!phone) {
-            alert('Please enter a valid phone number.');
-            return;
-        }
-
         const tableBody = document.getElementById('logsTableBody');
         const spinner = document.getElementById('loadingSpinner');
         const recordCount = document.getElementById('recordCount');
@@ -276,18 +139,13 @@
                 headers: { 'Accept': 'application/json' }
             });
 
-            const data = await response.json().catch(() => null);
-
-            if (!response.ok) {
-                const message = data && data.message ? data.message : `HTTP ${response.status}: ${response.statusText}`;
-                throw new Error(message);
-            }
+            const data = await response.json();
 
             spinner.style.display = 'none';
 
             if (!data || !data.logs || data.logs.length === 0) {
                 recordCount.innerText = '0 records found';
-                tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No call logs found for ${phone}.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No call logs found for ${escapeHtml(phone)}.</td></tr>`;
                 return;
             }
 
@@ -299,7 +157,7 @@
                         ${log.paystackVerified ? '<span class="badge-paystack">Paystack Verified</span>' : ''}
                         <br><small style="color: var(--text-muted);">${escapeHtml(log.phoneNumber)}</small>
                     </td>
-                    <td><span class="status-badge badge-${log.type}">${log.type}</span></td>
+                    <td><span class="status-badge badge-${log.type}">${escapeHtml(log.type)}</span></td>
                     <td>${escapeHtml(log.carrier)}</td>
                     <td>${formatDuration(log.durationSec)}</td>
                     <td>${new Date(log.timestamp).toLocaleString()}</td>
@@ -308,10 +166,66 @@
 
         } catch (error) {
             spinner.style.display = 'none';
-            const errorText = error.message || 'Error connecting to backend.';
-            tableBody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color: #ef4444;">Failed to fetch call logs for ${phone}.<br><small>${escapeHtml(errorText)}</small></td></tr>`;
+            recordCount.innerText = 'Error loading logs';
+            tableBody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color: var(--danger-color);">Could not connect to backend server.</td></tr>`;
         }
     }
+
+    async function handleCreateLog(event) {
+        event.preventDefault();
+        
+        const targetPhone = document.getElementById('newTargetPhone').value.trim();
+        const contactName = document.getElementById('newContactName').value.trim();
+        const type = document.getElementById('newCallType').value;
+        const durationSec = document.getElementById('newDuration').value;
+
+        try {
+            const response = await fetch(`${CONFIG.API_BASE_URL}/call-logs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    targetPhone,
+                    contactName,
+                    phoneNumber: targetPhone,
+                    type,
+                    durationSec,
+                    timestamp: new Date().toISOString()
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Record saved successfully!');
+                document.getElementById('addLogForm').reset();
+                document.getElementById('targetPhoneInput').value = targetPhone;
+                handleFetchLogs();
+            } else {
+                alert('Error saving record: ' + (data.message || 'Unknown error'));
+            }
+
+        } catch (error) {
+            alert('Failed to connect to backend server.');
+        }
+    }
+
+    function formatDuration(seconds) {
+        if (!seconds || seconds <= 0) return '0s';
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    }
+
+    function escapeHtml(str) {
+        return (str || '').replace(/[&<>"']/g, function(m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+        });
+    }
+
+    // Automatically load logs when page finishes loading
+    window.addEventListener('DOMContentLoaded', () => {
+        handleFetchLogs();
+    });
 </script>
 </body>
 </html>
