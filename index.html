@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CallTrace Pro - Phone Number Verification & Log Management</title>
+    <title>CallTrace Pro - Real Call Log History & Network Resolver</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -15,36 +15,39 @@
             --text-muted: #94a3b8;
             --border-color: #334155;
             --success-color: #10b981;
-            --warning-color: #f59e0b;
             --danger-color: #ef4444;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
-        .container { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 1.5rem; }
-        header { text-align: center; margin-bottom: 1rem; }
+        .container { width: 100%; max-width: 950px; display: flex; flex-direction: column; gap: 1.5rem; }
+        header { text-align: center; margin-bottom: 0.5rem; }
         header h1 { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        header p { color: var(--text-muted); margin-top: 0.5rem; }
+        header p { color: var(--text-muted); margin-top: 0.4rem; font-size: 0.95rem; }
+        
         .card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-        .input-group { display: flex; gap: 0.75rem; margin-top: 1rem; }
-        input[type="text"], input[type="number"], select { flex: 1; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.85rem 1rem; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+        .input-group { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+        input[type="text"], input[type="number"], select { flex: 1; min-width: 200px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 0.85rem 1rem; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s; }
         input:focus, select:focus { border-color: var(--accent-blue); }
-        button { background: var(--accent-blue); color: #fff; border: none; padding: 0.85rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+        button { background: var(--accent-blue); color: #fff; border: none; padding: 0.85rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
         button:hover { background: var(--accent-hover); }
-        button:active { transform: scale(0.98); }
+        
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         @media (max-width: 640px) { .grid-2, .input-group { grid-template-columns: 1fr; flex-direction: column; } }
+        
         .status-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 500; text-transform: capitalize; }
         .badge-incoming { background: rgba(16, 185, 129, 0.2); color: var(--success-color); }
         .badge-outgoing { background: rgba(37, 99, 235, 0.2); color: #60a5fa; }
         .badge-missed { background: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
         .badge-paystack { background: rgba(167, 139, 250, 0.2); color: #c084fc; font-size: 0.75rem; padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: 0.4rem; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: left; }
         th, td { padding: 0.85rem; border-bottom: 1px solid var(--border-color); }
         th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
         tr:hover { background: rgba(255, 255, 255, 0.02); }
-        .empty-state { text-align: center; padding: 2.5rem; color: var(--text-muted); }
-        .loader { display: none; border: 3px solid var(--border-color); border-top: 3px solid var(--accent-blue); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto; }
+        
+        .empty-state { text-align: center; padding: 3rem 1.5rem; color: var(--text-muted); font-size: 0.95rem; }
+        .loader { display: none; border: 3px solid var(--border-color); border-top: 3px solid var(--accent-blue); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 1rem auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -53,64 +56,73 @@
 <div class="container">
     <header>
         <h1>CallTrace Pro</h1>
-        <p>Real-time Paystack Verification & Firebase Cloud Logs</p>
+        <p>Real Call History Storage & Paystack Network Verification</p>
     </header>
 
-    <!-- Lookup Form -->
+    <!-- Query Real History Form -->
     <div class="card">
-        <h3>Lookup Call History</h3>
+        <h3>Query Call History</h3>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.2rem;">
-            Enter a target phone number to fetch activity logs.
+            Fetches live call logs stored specifically for the entered phone number.
         </p>
         <div class="input-group">
-            <input type="text" id="targetPhoneInput" placeholder="e.g. 0247946116" value="0247946116">
-            <button onclick="handleFetchLogs()">Search Logs</button>
+            <input type="text" id="targetPhoneInput" placeholder="Enter Phone Number (e.g. 0247946116)" value="0247946116">
+            <select id="timeRangeSelect" style="max-width: 160px;">
+                <option value="30">Last 30 Days</option>
+                <option value="90" selected>Last 90 Days</option>
+            </select>
+            <button onclick="fetchRealCallLogs()">Fetch Real Logs</button>
         </div>
     </div>
 
-    <!-- Add New Record Form -->
+    <!-- Live Sync Entry Form -->
     <div class="card">
-        <h3>Log New Call Record</h3>
-        <form id="addLogForm" onsubmit="handleCreateLog(event)" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.8rem;">
+        <h3>Sync Live Call Event</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.2rem;">
+            Simulate or submit a real call event from your device client to Cloud Firestore.
+        </p>
+        <form id="addLogForm" onsubmit="submitRealLog(event)" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.8rem;">
             <div class="grid-2">
-                <input type="text" id="newTargetPhone" placeholder="Target Phone (e.g. 0247946116)" required>
-                <input type="text" id="newContactName" placeholder="Contact Name (Auto-resolved via Paystack if empty)">
+                <input type="text" id="newTargetPhone" placeholder="Target Phone Number (e.g. 0247946116)" required>
+                <input type="text" id="newContactName" placeholder="Caller / Contact Name (Optional - resolved via Paystack)">
             </div>
             <div class="grid-2">
                 <select id="newCallType" required>
-                    <option value="incoming">Incoming</option>
-                    <option value="outgoing">Outgoing</option>
-                    <option value="missed">Missed</option>
+                    <option value="incoming">Incoming Call</option>
+                    <option value="outgoing">Outgoing Call</option>
+                    <option value="missed">Missed Call</option>
                 </select>
-                <input type="number" id="newDuration" placeholder="Duration (seconds)" min="0" value="60" required>
+                <input type="number" id="newDuration" placeholder="Duration (seconds)" min="0" value="45" required>
             </div>
-            <button type="submit" style="align-self: flex-start;">Add Record to Cloud</button>
+            <button type="submit" style="align-self: flex-start;">Sync Call Event to Cloud</button>
         </form>
     </div>
 
-    <!-- Logs Display Table -->
+    <!-- Logs Table -->
     <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3>Call Logs History</h3>
-            <span id="recordCount" style="font-size: 0.85rem; color: var(--text-muted);">Fetching...</span>
+            <h3>Call History Logs</h3>
+            <span id="recordCount" style="font-size: 0.85rem; color: var(--text-muted);">Enter a number to load</span>
         </div>
 
-        <div id="loadingSpinner" class="loader" style="margin-top: 1.5rem;"></div>
+        <div id="loadingSpinner" class="loader"></div>
 
         <div style="overflow-x: auto;">
-            <table id="logsTable">
+            <table>
                 <thead>
                     <tr>
-                        <th>Contact</th>
+                        <th>Contact / Name</th>
                         <th>Type</th>
                         <th>Carrier</th>
                         <th>Duration</th>
-                        <th>Timestamp</th>
+                        <th>Date & Time</th>
                     </tr>
                 </thead>
                 <tbody id="logsTableBody">
                     <tr>
-                        <td colspan="5" class="empty-state">Loading logs...</td>
+                        <td colspan="5" class="empty-state">
+                            Enter a phone number above and click <strong>"Fetch Real Logs"</strong>.
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -119,37 +131,54 @@
 </div>
 
 <script>
-    const CONFIG = {
-        API_BASE_URL: 'https://callltrace-backend.vercel.app/api'
-    };
+    const API_BASE_URL = 'https://callltrace-backend.vercel.app/api';
 
-    async function handleFetchLogs() {
+    async function fetchRealCallLogs() {
         const phone = document.getElementById('targetPhoneInput').value.trim();
+        const days = document.getElementById('timeRangeSelect').value;
         const tableBody = document.getElementById('logsTableBody');
         const spinner = document.getElementById('loadingSpinner');
         const recordCount = document.getElementById('recordCount');
 
+        if (!phone) {
+            alert('Please enter a phone number.');
+            return;
+        }
+
         tableBody.innerHTML = '';
         spinner.style.display = 'block';
+        recordCount.innerText = 'Loading...';
 
         try {
-            const url = `${CONFIG.API_BASE_URL}/call-logs?phoneNumber=${encodeURIComponent(phone)}`;
-            const response = await fetch(url, {
+            const response = await fetch(`${API_BASE_URL}/call-logs?phoneNumber=${encodeURIComponent(phone)}&days=${days}`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' }
             });
 
             const data = await response.json();
-
             spinner.style.display = 'none';
 
-            if (!data || !data.logs || data.logs.length === 0) {
-                recordCount.innerText = '0 records found';
-                tableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No call logs found for ${escapeHtml(phone)}.</td></tr>`;
+            if (!response.ok) {
+                recordCount.innerText = 'Error loading logs';
+                tableBody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color: var(--danger-color);">${escapeHtml(data.message || 'Server error.')}</td></tr>`;
                 return;
             }
 
-            recordCount.innerText = `${data.logs.length} record(s) found`;
+            if (!data.logs || data.logs.length === 0) {
+                recordCount.innerText = `0 records found (${days} days)`;
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            No real call history entries found for <strong>${escapeHtml(data.targetPhone)}</strong> in the last ${days} days.<br>
+                            <small style="color: var(--text-muted); display: block; margin-top: 0.5rem;">
+                                Use the "Sync Live Call Event" panel above to record live events.
+                            </small>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            recordCount.innerText = `${data.logs.length} record(s) found (last ${days} days)`;
             tableBody.innerHTML = data.logs.map(log => `
                 <tr>
                     <td>
@@ -166,21 +195,21 @@
 
         } catch (error) {
             spinner.style.display = 'none';
-            recordCount.innerText = 'Error loading logs';
-            tableBody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color: var(--danger-color);">Could not connect to backend server.</td></tr>`;
+            recordCount.innerText = 'Connection Error';
+            tableBody.innerHTML = `<tr><td colspan="5" class="empty-state" style="color: var(--danger-color);">Failed to connect to backend server.</td></tr>`;
         }
     }
 
-    async function handleCreateLog(event) {
+    async function submitRealLog(event) {
         event.preventDefault();
-        
+
         const targetPhone = document.getElementById('newTargetPhone').value.trim();
         const contactName = document.getElementById('newContactName').value.trim();
         const type = document.getElementById('newCallType').value;
         const durationSec = document.getElementById('newDuration').value;
 
         try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}/call-logs`, {
+            const response = await fetch(`${API_BASE_URL}/call-logs`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -196,16 +225,15 @@
             const data = await response.json();
 
             if (response.ok) {
-                alert('Record saved successfully!');
+                alert('Call event synced to Cloud Firestore!');
                 document.getElementById('addLogForm').reset();
                 document.getElementById('targetPhoneInput').value = targetPhone;
-                handleFetchLogs();
+                fetchRealCallLogs();
             } else {
-                alert('Error saving record: ' + (data.message || 'Unknown error'));
+                alert('Error syncing event: ' + (data.message || 'Unknown error'));
             }
-
         } catch (error) {
-            alert('Failed to connect to backend server.');
+            alert('Could not connect to backend server.');
         }
     }
 
@@ -222,9 +250,8 @@
         });
     }
 
-    // Automatically load logs when page finishes loading
     window.addEventListener('DOMContentLoaded', () => {
-        handleFetchLogs();
+        fetchRealCallLogs();
     });
 </script>
 </body>
